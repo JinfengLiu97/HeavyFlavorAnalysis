@@ -9,7 +9,7 @@ https://github.com/JinfengLiu97/HeavyFlavorAnalysis/blob/main/Onia2MuMu/src/MuMu
     cmsrel CMSSW_10_6_20
     cd CMSSW_10_6_20/src/
     cmsenv
-    git clone ???
+    git clone https://github.com/JinfengLiu97/HeavyFlavorAnalysis
     scram b
     cd HeavyFlavorAnalysis
     cd Onia2MuMu/test/
