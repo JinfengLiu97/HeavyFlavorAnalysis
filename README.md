@@ -26,7 +26,7 @@ They and corresponding branches are listed here:
 * ctau: fourMuFit_ups1/2_cTau_MC/noMC  
 * LxyPV: fourMuFit_ups1/2_LxyPV_MC/noMC  
 * Significance of LxyPV: fourMuFit_ups1/2_LxyPVSig_MC/noMC  
-* Significanec of the distance of Jpsis decay vertexes (dJ/psi): fourMuFit_DistanceSig_MC/noMC  
+* Significance of the distance of Jpsis decay vertexes (dJ/psi): fourMuFit_DistanceSig_MC/noMC  
 
 You can also find related variables according to these branches.  
 
