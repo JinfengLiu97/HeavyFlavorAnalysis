@@ -1,8 +1,10 @@
 # HeavyFlavorAnalysis
 
 This repository is about the merging of the SKIM and Ntuple steps for the double Jpsi cross section measurement study.  
-The SKIM is from: https://github.com/zhenhu/HeavyFlavorAnalysis  
-The core file of the Ntuple Maker is: HeavyFlavorAnalysis/Onia2MuMu/src/MuMuGammaRootupler.cc  
+The SKIM is from:  
+https://github.com/zhenhu/HeavyFlavorAnalysis  
+The core file of the Ntuple Maker is: HeavyFlavorAnalysis/Onia2MuMu/src/MuMuGammaRootupler.cc:  
+https://github.com/JinfengLiu97/HeavyFlavorAnalysis/blob/main/Onia2MuMu/src/MuMuGammaRootupler.cc  
 ****
     cmsrel CMSSW_10_6_20
     cd CMSSW_10_6_20/src/
