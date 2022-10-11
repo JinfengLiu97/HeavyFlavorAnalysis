@@ -11,8 +11,7 @@ https://github.com/JinfengLiu97/HeavyFlavorAnalysis/blob/main/Onia2MuMu/src/MuMu
     cmsenv
     git clone https://github.com/JinfengLiu97/HeavyFlavorAnalysis
     scram b
-    cd HeavyFlavorAnalysis
-    cd Onia2MuMu/test/
+    cd HeavyFlavorAnalysis/Onia2MuMu/test/
     voms-proxy-init -voms cms --valid 172:00  
 Do the local test first:  
 `cmsRun BPH_SKIM_Ntuple_data.py`  
