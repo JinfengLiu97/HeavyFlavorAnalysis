@@ -18,4 +18,16 @@ Do the local test first:
 After the test is passed, submit the CRAB request by:  
 `crab submit crab3_SKIM_Ntuple.py`  
 All the datasets and JSONs are already listed in the CRAB configuration file, modify them properly before the submission.  
-Wish you a nice journey in data processing!
+
+## About the Ntuple
+
+As for now, the Ntuple Maker mainly saves four variables about the distance (prompt/non-prompt distinguishment).  
+They and corresponding branches are listed here:  
+* ctau: fourMuFit_ups1/2_cTau_MC/noMC  
+* LxyPV: fourMuFit_ups1/2_LxyPV_MC/noMC  
+* Significance of LxyPV: fourMuFit_ups1/2_LxyPVSig_MC/noMC  
+* Significanec of the distance of Jpsis decay vertexes (dJ/psi): fourMuFit_DistanceSig_MC/noMC  
+You can also find related variables according to these branches.  
+
+## Wish you a nice journey in data processing!
+
