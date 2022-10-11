@@ -13,7 +13,7 @@ The core file of the Ntuple Maker is: HeavyFlavorAnalysis/Onia2MuMu/src/MuMuGamm
     cd Onia2MuMu/test/UL/
     voms-proxy-init -voms cms --valid 172:00  
 Do the local test first:  
-`cmsRun BPH_SKIM_Ntuple_UL_data.py`  
+`cmsRun BPH_SKIM_Ntuple_data.py`  
 After the test is passed, submit the CRAB request by:  
 `crab submit crab3_SKIM_Ntuple.py`  
 All the datasets and JSONs are already listed in the CRAB configuration file, modify them properly before the submission.  
