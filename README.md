@@ -10,7 +10,7 @@ The core file of the Ntuple Maker is: HeavyFlavorAnalysis/Onia2MuMu/src/MuMuGamm
     git clone ???
     scram b
     cd HeavyFlavorAnalysis
-    cd Onia2MuMu/test/UL/
+    cd Onia2MuMu/test/
     voms-proxy-init -voms cms --valid 172:00  
 Do the local test first:  
 `cmsRun BPH_SKIM_Ntuple_data.py`  
