@@ -68,7 +68,8 @@
 #include "TH2F.h"
 //GEN
 //10.10
-#include "HeavyFlavorAnalysis/Onia2MuMu//interface/HZZ4LGENAna.h"
+//#include "HeavyFlavorAnalysis/Onia2MuMu//interface/HZZ4LGENAna.h"
+#include "FourMuonAna/Onia/interface/HZZ4LGENAna.h"
 
 using namespace std;
 using namespace edm;
@@ -102,6 +103,17 @@ Float_t temp_DistanceErr_MC;
 Float_t temp_DistanceSig_noMC;
 Float_t temp_DistanceSig_MC;
 
+//Jinfeng 12.14
+bool Dimuon_trigger_matched_1 = false;
+bool Dimuon_trigger_matched_2 = false;
+bool Rest_Muon_trigger_Matched_1 = false;
+bool Rest_Muon_trigger_Matched_2 = false;
+bool Trigger_Matched = false;
+
+//Jinfeng 1.16
+float DuplicateHLT_Pt_1;
+float DuplicateHLT_Pt_2;
+
 
 //
 // class declaration
@@ -116,15 +128,18 @@ class MuMuGammaRootupler:public edm::EDAnalyzer {
 
 	private:
 		UInt_t getTriggerBits(const edm::Event &);
-                bool TriggerMatch(pat::CompositeCandidate dimuonCand);
-                bool TriggerMatch_restMuons(TLorentzVector mu3p4, TLorentzVector mu4p4);
-                bool findTrigger(edm::Handle<edm::TriggerResults> &hltR,
-                                 std::vector < std::string > & triggersToCheck,
-                                 std::vector < std::string > & triggerNameFound); 
-                void analyzeTrigger(edm::Handle<edm::TriggerResults> &hltR,
-                                       edm::Handle<trigger::TriggerEvent> &hltE,
-                                         const std::string& triggerName);
-                bool triggerDecision(edm::Handle<edm::TriggerResults> &hltR, int iTrigger);
+
+        //Jinfeng 12.14
+        //Modify the input of this function
+        bool TriggerMatch(TLorentzVector mu3p4, TLorentzVector mu4p4);
+        bool TriggerMatch_restMuons(TLorentzVector mu3p4, TLorentzVector mu4p4);
+        bool findTrigger(edm::Handle<edm::TriggerResults>& hltR,
+            std::vector < std::string >& triggersToCheck,
+            std::vector < std::string >& triggerNameFound);
+        void analyzeTrigger(edm::Handle<edm::TriggerResults>& hltR,
+            edm::Handle<trigger::TriggerEvent>& hltE,
+            const std::string& triggerName);
+        bool triggerDecision(edm::Handle<edm::TriggerResults>& hltR, int iTrigger);
 		bool   isAncestor(const reco::Candidate *, const reco::Candidate *);
 		const  reco::Candidate* GetAncestor(const reco::Candidate *);
 		int   tightMuon(edm::View<pat::Muon>::const_iterator rmu, reco::Vertex vertex);
@@ -439,7 +454,7 @@ class MuMuGammaRootupler:public edm::EDAnalyzer {
         std::vector<Float_t> fourMuFit_DistanceErr_MC;
         std::vector<Float_t> fourMuFit_DistanceSig_noMC;
         std::vector<Float_t> fourMuFit_DistanceSig_MC;
-                
+      
                 std::vector<Float_t> fourMuFit_Double_ups_VtxProb;
                 std::vector<Float_t> fourMuFit_ups1_VtxProb;
                 std::vector<Float_t> fourMuFit_ups2_VtxProb;
@@ -1072,6 +1087,9 @@ MuMuGammaRootupler::MuMuGammaRootupler(const edm::ParameterSet & iConfig):
                 onia_tree->Branch("fourMuFit_DistanceErr_MC", &fourMuFit_DistanceErr_MC);
                 onia_tree->Branch("fourMuFit_DistanceSig_noMC", &fourMuFit_DistanceSig_noMC);
                 onia_tree->Branch("fourMuFit_DistanceSig_MC", &fourMuFit_DistanceSig_MC);
+
+                //Jinfeng 12.14
+                onia_tree->Branch("Trigger_Matched", &Trigger_Matched);
 
                 onia_tree->Branch("fourMuFit_ups1_VtxX",&fourMuFit_ups1_VtxX);
                 onia_tree->Branch("fourMuFit_ups1_VtxY",&fourMuFit_ups1_VtxY);
@@ -1765,178 +1783,214 @@ UInt_t MuMuGammaRootupler::getTriggerBits(const edm::Event& iEvent) {
 	return itrigger;
 }
 
-bool MuMuGammaRootupler::TriggerMatch(pat::CompositeCandidate dimuonCand) {     
-       allTrigMuons.clear(); 
-       if (verbose) cout<< "Trigger matching for dimuon candidate"<<endl;
-       double reco1_eta = dimuonCand.daughter("muon1")->eta();
-       double reco1_phi = dimuonCand.daughter("muon1")->phi();
-       double reco1_pt = dimuonCand.daughter("muon1")->pt();
-       double reco1_mass = dimuonCand.daughter("muon1")->mass();
-       double reco2_eta = dimuonCand.daughter("muon2")->eta();
-       double reco2_phi = dimuonCand.daughter("muon2")->phi();
-       double reco2_pt = dimuonCand.daughter("muon2")->pt();
-       double reco2_mass = dimuonCand.daughter("muon2")->mass();
-       if (verbose) cout<<"This Dimuon candidate"<<" mu1pt:" <<reco1_pt<<" mu1eta:"<<reco1_eta<<" mu1phi:"<<reco1_phi<<endl;
-       if (verbose) cout<<"This Dimuon candidate"<<" mu2pt:" <<reco2_pt<<" mu1eta:"<<reco2_eta<<" mu1phi:"<<reco2_phi<<endl;
-       float dR1 = -9999.;
-       float dR2 = -9999.;
-       float dR1_minimum = 99;
-       float dR2_minimum = 99;
-       float dPt1 = 999;
-       float dPt2 = 999;
-       float dPt1OvP = 999;
-       float dPt2OvP = 999;
-       TLorentzVector TempMomenta1;
-       TLorentzVector TempMomenta2;
-       //if (verbose) cout<<"allMuHLTTriggerVectors.size():"<<allMuHLTTriggerVectors.size()<<endl;
-       if (verbose) cout<<"allUpsilonMuHLTTriggerVectors.size();"<<allUpsilonMuHLTTriggerVectors.size()<<endl;
-       //for(uint iTrig =0;iTrig<allMuHLTTriggerVectors.size();++iTrig){
-       for(uint iTrig =0;iTrig<allUpsilonMuHLTTriggerVectors.size();++iTrig){
-           double hlt_pt = allUpsilonMuHLTTriggerVectors[iTrig].perp();          
-           double hlt_eta = allUpsilonMuHLTTriggerVectors[iTrig].eta();
-           double hlt_phi = allUpsilonMuHLTTriggerVectors[iTrig].phi();
-           double dR1 =  deltaR(reco1_eta,reco1_phi,hlt_eta,hlt_phi);
-           double dR2 =  deltaR(reco2_eta,reco2_phi,hlt_eta,hlt_phi);
-           if (verbose) cout<<"iTrig:"<<iTrig<<" iTrigpT:"<<hlt_pt<<" hlt_phi:"<<hlt_phi<<endl;
-           if (verbose) cout<<"dR1:" <<dR1<<" dPt1:"<<dPt1<<endl;
-           if (verbose) cout<<"dR2:" <<dR2<<" dPt2:"<<dPt2<<endl; 
-           if (dR1<dR2)
-           {
-            if (dR1<dR1_minimum)       
-            {
-            dR1_minimum = dR1;   
-            dPt1 = std::abs(reco1_pt - hlt_pt); 
-	    dPt1OvP = dPt1/reco1_pt; 
-	    if(dR1 < trg_Match_dR_cut && (dPt1 < trg_Match_dP_cut ||  dPt1OvP < trg_Match_dP_ratio_cut)) 
-              { 
-               if (verbose) cout<<"Matching L3 sucessfull muPt1 = " <<reco1_pt<<" trigPt = "<<hlt_pt<<" dR = "<<dR1<<endl;
-               TempMomenta1.SetPtEtaPhiM(reco1_pt,reco1_eta,reco1_phi,reco1_mass);
-                } //Found matching to muon 1
-               else cout<<"Matching failed -> iTrig = "<< hlt_pt<<" eta = "<<hlt_eta<<" phi = "<< hlt_phi<<" dR ="<<dR1<<endl;
-               } // checking best matching object with muon 1 
-            } // matching to muon1 
-           if (dR2<dR1)
-            {
-             if (dR2<dR2_minimum)
-              {
-             dR2_minimum = dR2;
-             dPt2 = std::abs(reco2_pt - hlt_pt);   
-             dPt2OvP = dPt2/reco2_pt;    
-	     if(dR2 < trg_Match_dR_cut && (dPt2 < trg_Match_dP_cut ||  dPt2OvP < trg_Match_dP_ratio_cut))
-               {
-               if (verbose) cout<<"Matching L3 sucessfull muPt2 = " <<reco2_pt<<" trigPt = "<<hlt_pt<<" dR = "<<dR2<<endl;
-               TempMomenta2.SetPtEtaPhiM(reco2_pt,reco2_eta,reco2_phi,reco2_mass);
-                }
-             else cout<<"Matching failed -> iTrig = "<< hlt_pt<<" eta = "<<hlt_eta<<" phi = "<< hlt_phi<<" dR ="<<dR2<<endl;
-                 } //checking best matching object  with muon 2
-             } // matching to muon2
-         } // loop over all HLT objects
-        dR1 = dR1_minimum;
-        dR2 = dR2_minimum;
-        v_mu1_trg_dR.push_back(dR1);
-        v_mu2_trg_dR.push_back(dR2);
-        if( dR1 < trg_Match_dR_cut && (dPt1 < trg_Match_dP_cut ||  dPt1OvP < trg_Match_dP_ratio_cut)){
-          allTrigMuons.push_back(TempMomenta1);
-           } // filling vector of matched muon 1
-        if(dR2 < trg_Match_dR_cut && (dPt2 < trg_Match_dP_cut ||  dPt2OvP < trg_Match_dP_ratio_cut) ){
-          allTrigMuons.push_back(TempMomenta2);
-           } // filling vector of matched muon 2      
-        if (verbose)
+//Jinfeng 12.14
+//Modify the function, the input now will be the p4 vector of the two muons in the dimuon candidate
+//Since the invoking of the function is after the dimuon fit, no need to worry that it is not a dimuon candidate
+bool MuMuGammaRootupler::TriggerMatch(TLorentzVector mu1p4, TLorentzVector mu2p4) {
+    allTrigMuons.clear();
+    if (verbose) cout << "Trigger matching for dimuon candidate" << endl;
+    double reco1_eta = mu1p4.Eta();
+    double reco1_phi = mu1p4.Phi();
+    double reco1_pt = mu1p4.Pt();
+    double reco1_mass = mu1p4.M();
+    double reco2_eta = mu2p4.Eta();
+    double reco2_phi = mu2p4.Phi();
+    double reco2_pt = mu2p4.Pt();
+    double reco2_mass = mu2p4.M();
+    if (verbose) cout << "This Dimuon candidate" << " mu1pt:" << reco1_pt << " mu1eta:" << reco1_eta << " mu1phi:" << reco1_phi << endl;
+    if (verbose) cout << "This Dimuon candidate" << " mu2pt:" << reco2_pt << " mu1eta:" << reco2_eta << " mu1phi:" << reco2_phi << endl;
+    float dR1 = -9999.;
+    float dR2 = -9999.;
+    float dR1_minimum = 99;
+    float dR2_minimum = 99;
+    float dPt1 = 999;
+    float dPt2 = 999;
+    float dPt1OvP = 999;
+    float dPt2OvP = 999;
+    TLorentzVector TempMomenta1;
+    TLorentzVector TempMomenta2;
+
+    //Jinfeng 1.16
+    float HLT_TempPt1;
+    float HLT_TempPt2;
+
+    //if (verbose) cout<<"allMuHLTTriggerVectors.size():"<<allMuHLTTriggerVectors.size()<<endl;
+    if (verbose) cout << "allUpsilonMuHLTTriggerVectors.size();" << allUpsilonMuHLTTriggerVectors.size() << endl;
+    //for(uint iTrig =0;iTrig<allMuHLTTriggerVectors.size();++iTrig){
+    for (uint iTrig = 0; iTrig < allUpsilonMuHLTTriggerVectors.size(); ++iTrig) {
+        double hlt_pt = allUpsilonMuHLTTriggerVectors[iTrig].perp();
+        double hlt_eta = allUpsilonMuHLTTriggerVectors[iTrig].eta();
+        double hlt_phi = allUpsilonMuHLTTriggerVectors[iTrig].phi();
+        double dR1 = deltaR(reco1_eta, reco1_phi, hlt_eta, hlt_phi);
+        double dR2 = deltaR(reco2_eta, reco2_phi, hlt_eta, hlt_phi);
+        if (verbose) cout << "iTrig:" << iTrig << " iTrigpT:" << hlt_pt << " hlt_phi:" << hlt_phi << endl;
+        if (verbose) cout << "dR1:" << dR1 << " dPt1:" << dPt1 << endl;
+        if (verbose) cout << "dR2:" << dR2 << " dPt2:" << dPt2 << endl;
+        if (dR1 < dR2)
         {
-        cout<<" AllTrigMu = "<<allTrigMuons.size()<<endl;
-        cout<<" good fourMu  run/lumi/event : "<<run<<"/"<<lumi<<"/"<<event<<std::endl;
-        if(allTrigMuons.size()>=2){
-          cout<<"Matching good "<<endl;
-             }
-          }
-      if (allTrigMuons.size()>=2) return true;
-      else return false;
-     }
+            if (dR1 < dR1_minimum)
+            {
+                dR1_minimum = dR1;
+                dPt1 = std::abs(reco1_pt - hlt_pt);
+                dPt1OvP = dPt1 / reco1_pt;
+
+                if (dR1 < trg_Match_dR_cut && (dPt1 < trg_Match_dP_cut || dPt1OvP < trg_Match_dP_ratio_cut))
+                {
+                    if (verbose) cout << "Matching L3 sucessfull muPt1 = " << reco1_pt << " trigPt = " << hlt_pt << " dR = " << dR1 << endl;
+                    TempMomenta1.SetPtEtaPhiM(reco1_pt, reco1_eta, reco1_phi, reco1_mass);
+                    //1.16
+                    HLT_TempPt1 = hlt_pt;
+                } //Found matching to muon 1
+                //Jinfeng 12.14 (comment out else line)
+                //else cout << "Matching failed -> iTrig = " << hlt_pt << " eta = " << hlt_eta << " phi = " << hlt_phi << " dR =" << dR1 << endl;
+            } // checking best matching object with muon 1 
+        } // matching to muon1 
+
+        if (dR2 < dR1)
+        {
+            if (dR2 < dR2_minimum)
+            {
+                dR2_minimum = dR2;
+                dPt2 = std::abs(reco2_pt - hlt_pt);
+                dPt2OvP = dPt2 / reco2_pt;
+
+                if (dR2 < trg_Match_dR_cut && (dPt2 < trg_Match_dP_cut || dPt2OvP < trg_Match_dP_ratio_cut))
+                {
+                    if (verbose) cout << "Matching L3 sucessfull muPt2 = " << reco2_pt << " trigPt = " << hlt_pt << " dR = " << dR2 << endl;
+                    TempMomenta2.SetPtEtaPhiM(reco2_pt, reco2_eta, reco2_phi, reco2_mass);
+                    //1.16
+                    HLT_TempPt2 = hlt_pt;
+                }
+                //Jinfeng 12.14 (comment out else line)
+                //else cout << "Matching failed -> iTrig = " << hlt_pt << " eta = " << hlt_eta << " phi = " << hlt_phi << " dR =" << dR2 << endl;
+            } //checking best matching object  with muon 2
+        } // matching to muon2
+    } // loop over all HLT objects
+
+    dR1 = dR1_minimum;
+    dR2 = dR2_minimum;
+    v_mu1_trg_dR.push_back(dR1);
+    v_mu2_trg_dR.push_back(dR2);
+    if (dR1 < trg_Match_dR_cut && (dPt1 < trg_Match_dP_cut || dPt1OvP < trg_Match_dP_ratio_cut))
+    {
+        allTrigMuons.push_back(TempMomenta1);
+        //1.16
+        DuplicateHLT_Pt_1 = HLT_TempPt1;
+    } // filling vector of matched muon 1
+    if (dR2 < trg_Match_dR_cut && (dPt2 < trg_Match_dP_cut || dPt2OvP < trg_Match_dP_ratio_cut))
+    {
+        allTrigMuons.push_back(TempMomenta2);
+        //1.16
+        DuplicateHLT_Pt_2 = HLT_TempPt2;
+    } // filling vector of matched muon 2      
+    if (verbose)
+    {
+        cout << " AllTrigMu = " << allTrigMuons.size() << endl;
+        cout << " good fourMu  run/lumi/event : " << run << "/" << lumi << "/" << event << std::endl;
+        if (allTrigMuons.size() >= 2) {
+            cout << "Matching good " << endl;
+        }
+    }
+    if (allTrigMuons.size() >= 2) return true;
+    else return false;
+}
+
 bool MuMuGammaRootupler::TriggerMatch_restMuons(TLorentzVector mu3p4, TLorentzVector mu4p4) {
-       allRestTrigMuons.clear();
-       if (verbose) cout<< "Trigger matching for Rest of muons candidates"<<endl;
-       double reco1_eta = mu3p4.Eta();
-       double reco1_phi = mu3p4.Phi();
-       double reco1_pt = mu3p4.Pt();
-       double reco1_mass = mu3p4.M();
-       double reco2_eta = mu4p4.Eta();
-       double reco2_phi = mu4p4.Phi();
-       double reco2_pt = mu4p4.Pt();
-       double reco2_mass = mu4p4.M();
-       if (verbose) cout<<"First muon candidate"<<" mu1pt:" <<reco1_pt<<" mu1eta:"<<reco1_eta<<" mu1phi:"<<reco1_phi<<endl;
-       if (verbose) cout<<"Second muon candidate"<<" mu2pt:" <<reco2_pt<<" mu2eta:"<<reco2_eta<<" mu2phi:"<<reco2_phi<<endl;
-       float dR1 = -9999.;
-       float dR2 = -9999.;
-       float dR1_minimum = 99;
-       float dR2_minimum = 99;
-       float dPt1 = 999;
-       float dPt2 = 999;
-       float dPt1OvP = 999;
-       float dPt2OvP = 999;
-       TLorentzVector TempMomenta1;
-       TLorentzVector TempMomenta2;
-       if (verbose) cout<<"allMuHLTTriggerVectors.size():"<<allMuHLTTriggerVectors.size()<<endl;
-       for(uint iTrig =0;iTrig<allMuHLTTriggerVectors.size();++iTrig){
-           double hlt_pt = allMuHLTTriggerVectors[iTrig].perp();
-           double hlt_eta = allMuHLTTriggerVectors[iTrig].eta();
-           double hlt_phi = allMuHLTTriggerVectors[iTrig].phi();
-           double dR1 =  deltaR(reco1_eta,reco1_phi,hlt_eta,hlt_phi);
-           double dR2 =  deltaR(reco2_eta,reco2_phi,hlt_eta,hlt_phi);
-           if (verbose) cout<<"iTrig:"<<iTrig<<" iTrigpT:"<<hlt_pt<<" hlt_phi:"<<hlt_phi<<endl;
-           if (verbose) cout<<"dR1:" <<dR1<<" dPt1:"<<dPt1<<endl;
-           if (verbose) cout<<"dR2:" <<dR2<<" dPt2:"<<dPt2<<endl;
-           if (dR1<dR2)
-           {
-            if (dR1<dR1_minimum)
-            {
-            dR1_minimum = dR1;
-            dPt1 = std::abs(reco1_pt - hlt_pt);
-            dPt1OvP = dPt1/reco1_pt;
-            if(dR1 < trg_Match_dR_cut && (dPt1 < trg_Match_dP_cut ||  dPt1OvP < trg_Match_dP_ratio_cut))
-              {
-               if (verbose) cout<<"Matching L3 sucessfull muPt1 = " <<reco1_pt<<" trigPt = "<<hlt_pt<<" dR = "<<dR1<<endl;
-               TempMomenta1.SetPtEtaPhiM(reco1_pt,reco1_eta,reco1_phi,reco1_mass);
-                } //Found matching to muon 1
-               else cout<<"Matching failed -> iTrig = "<< hlt_pt<<" eta = "<<hlt_eta<<" phi = "<< hlt_phi<<" dR ="<<dR1<<endl;
-               } // checking best matching object with muon 1 
-            } // matching to muon1 
-           if (dR2<dR1)
-            {
-             if (dR2<dR2_minimum)
-              {
-             dR2_minimum = dR2;
-             dPt2 = std::abs(reco2_pt - hlt_pt);
-             dPt2OvP = dPt2/reco2_pt;
-             if(dR2 < trg_Match_dR_cut && (dPt2 < trg_Match_dP_cut ||  dPt2OvP < trg_Match_dP_ratio_cut))
-               {
-               if (verbose) cout<<"Matching L3 sucessfull muPt2 = " <<reco2_pt<<" trigPt = "<<hlt_pt<<" dR = "<<dR2<<endl;
-               TempMomenta2.SetPtEtaPhiM(reco2_pt,reco2_eta,reco2_phi,reco2_mass);
-                }
-             else cout<<"Matching failed -> iTrig = "<< hlt_pt<<" eta = "<<hlt_eta<<" phi = "<< hlt_phi<<" dR ="<<dR2<<endl;
-                 } //checking best matching object  with muon 2
-             } // matching to muon2
-         } // loop over all HLT objects
-        dR1 = dR1_minimum;
-        dR2 = dR2_minimum;
-        fourMuFit_mu3_trg_dR.push_back(dR1);
-        fourMuFit_mu4_trg_dR.push_back(dR2);
-        if( dR1 < trg_Match_dR_cut && (dPt1 < trg_Match_dP_cut ||  dPt1OvP < trg_Match_dP_ratio_cut) ){
-          allRestTrigMuons.push_back(TempMomenta1);
-           } // filling vector of matched muon 1
-        if(dR2 < trg_Match_dR_cut && (dPt2 < trg_Match_dP_cut ||  dPt2OvP < trg_Match_dP_ratio_cut) ){
-          allRestTrigMuons.push_back(TempMomenta2);
-           } // filling vector of matched muon 2      
-        if (verbose)
+    allRestTrigMuons.clear();
+    if (verbose) cout << "Trigger matching for Rest of muons candidates" << endl;
+    double reco1_eta = mu3p4.Eta();
+    double reco1_phi = mu3p4.Phi();
+    double reco1_pt = mu3p4.Pt();
+    double reco1_mass = mu3p4.M();
+    double reco2_eta = mu4p4.Eta();
+    double reco2_phi = mu4p4.Phi();
+    double reco2_pt = mu4p4.Pt();
+    double reco2_mass = mu4p4.M();
+    if (verbose) cout << "First muon candidate" << " mu1pt:" << reco1_pt << " mu1eta:" << reco1_eta << " mu1phi:" << reco1_phi << endl;
+    if (verbose) cout << "Second muon candidate" << " mu2pt:" << reco2_pt << " mu2eta:" << reco2_eta << " mu2phi:" << reco2_phi << endl;
+    float dR1 = -9999.;
+    float dR2 = -9999.;
+    float dR1_minimum = 99;
+    float dR2_minimum = 99;
+    float dPt1 = 999;
+    float dPt2 = 999;
+    float dPt1OvP = 999;
+    float dPt2OvP = 999;
+    TLorentzVector TempMomenta1;
+    TLorentzVector TempMomenta2;
+    if (verbose) cout << "allMuHLTTriggerVectors.size():" << allMuHLTTriggerVectors.size() << endl;
+    for (uint iTrig = 0; iTrig < allMuHLTTriggerVectors.size(); ++iTrig) {
+        double hlt_pt = allMuHLTTriggerVectors[iTrig].perp();
+        double hlt_eta = allMuHLTTriggerVectors[iTrig].eta();
+        double hlt_phi = allMuHLTTriggerVectors[iTrig].phi();
+        double dR1 = deltaR(reco1_eta, reco1_phi, hlt_eta, hlt_phi);
+        double dR2 = deltaR(reco2_eta, reco2_phi, hlt_eta, hlt_phi);
+
+        //Jinfeng 1.16
+        if ((hlt_pt == DuplicateHLT_Pt_1) || (hlt_pt == DuplicateHLT_Pt_2))
+            continue;
+
+        if (verbose) cout << "iTrig:" << iTrig << " iTrigpT:" << hlt_pt << " hlt_phi:" << hlt_phi << endl;
+        if (verbose) cout << "dR1:" << dR1 << " dPt1:" << dPt1 << endl;
+        if (verbose) cout << "dR2:" << dR2 << " dPt2:" << dPt2 << endl;
+        if (dR1 < dR2)
         {
-        cout<<" All Rest Trigger matched muons size = "<<allRestTrigMuons.size()<<endl;
-        cout<<" run/lumi/event : "<<run<<"/"<<lumi<<"/"<<event<<std::endl;
-        if(allRestTrigMuons.size()>=1){
-          cout<<"Atleast one of Rest muon Match with HLT Object "<<endl;
-             }
-          }
-      if (allRestTrigMuons.size()>=1) return true;
-      else return false;
-     }
+            if (dR1 < dR1_minimum)
+            {
+                dR1_minimum = dR1;
+                dPt1 = std::abs(reco1_pt - hlt_pt);
+                dPt1OvP = dPt1 / reco1_pt;
+
+                if (dR1 < trg_Match_dR_cut && (dPt1 < trg_Match_dP_cut || dPt1OvP < trg_Match_dP_ratio_cut))
+                {
+                    if (verbose) cout << "Matching L3 sucessfull muPt1 = " << reco1_pt << " trigPt = " << hlt_pt << " dR = " << dR1 << endl;
+                    TempMomenta1.SetPtEtaPhiM(reco1_pt, reco1_eta, reco1_phi, reco1_mass);
+                } //Found matching to muon 1
+                //Jinfeng 12.14 (comment out else line)
+                //else cout << "Matching failed -> iTrig = " << hlt_pt << " eta = " << hlt_eta << " phi = " << hlt_phi << " dR =" << dR1 << endl;
+            } // checking best matching object with muon 1 
+        } // matching to muon1 
+
+        if (dR2 < dR1)
+        {
+            if (dR2 < dR2_minimum)
+            {
+                dR2_minimum = dR2;
+                dPt2 = std::abs(reco2_pt - hlt_pt);
+                dPt2OvP = dPt2 / reco2_pt;
+
+                if (dR2 < trg_Match_dR_cut && (dPt2 < trg_Match_dP_cut || dPt2OvP < trg_Match_dP_ratio_cut))
+                {
+                    if (verbose) cout << "Matching L3 sucessfull muPt2 = " << reco2_pt << " trigPt = " << hlt_pt << " dR = " << dR2 << endl;
+                    TempMomenta2.SetPtEtaPhiM(reco2_pt, reco2_eta, reco2_phi, reco2_mass);
+                }
+                //Jinfeng 12.14 (comment out else line)
+                //else cout << "Matching failed -> iTrig = " << hlt_pt << " eta = " << hlt_eta << " phi = " << hlt_phi << " dR =" << dR2 << endl;
+            } //checking best matching object  with muon 2
+        } // matching to muon2
+    } // loop over all HLT objects
+
+    dR1 = dR1_minimum;
+    dR2 = dR2_minimum;
+    fourMuFit_mu3_trg_dR.push_back(dR1);
+    fourMuFit_mu4_trg_dR.push_back(dR2);
+    if (dR1 < trg_Match_dR_cut && (dPt1 < trg_Match_dP_cut || dPt1OvP < trg_Match_dP_ratio_cut)) {
+        allRestTrigMuons.push_back(TempMomenta1);
+    } // filling vector of matched muon 1
+    if (dR2 < trg_Match_dR_cut && (dPt2 < trg_Match_dP_cut || dPt2OvP < trg_Match_dP_ratio_cut)) {
+        allRestTrigMuons.push_back(TempMomenta2);
+    } // filling vector of matched muon 2      
+    if (verbose)
+    {
+        cout << " All Rest Trigger matched muons size = " << allRestTrigMuons.size() << endl;
+        cout << " run/lumi/event : " << run << "/" << lumi << "/" << event << std::endl;
+        if (allRestTrigMuons.size() >= 1) {
+            cout << "Atleast one of Rest muon Match with HLT Object " << endl;
+        }
+    }
+    if (allRestTrigMuons.size() >= 1) return true;
+    else return false;
+}
 // ------------ method called for each event  ------------
 void MuMuGammaRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup & iSetup) {
         using namespace trigger;
@@ -2300,6 +2354,9 @@ void MuMuGammaRootupler::analyze(const edm::Event & iEvent, const edm::EventSetu
         fourMuFit_DistanceSig_noMC.clear();
         fourMuFit_DistanceSig_MC.clear();
 
+        //Jinfeng 12.14
+        Trigger_Matched = false;
+
         fourMuFit_ups1_LxyPV_noMC.clear();
         fourMuFit_ups2_LxyPV_noMC.clear();
         fourMuFit_ups1_LxyPV_MC.clear();
@@ -2555,6 +2612,10 @@ void MuMuGammaRootupler::analyze(const edm::Event & iEvent, const edm::EventSetu
   allMuHLTTriggerVectors.clear();
   allUpsilonMuHLTTriggerVectors.clear();
 
+  //Jinfeng 1.16
+  DuplicateHLT_Pt_1 = -1;
+  DuplicateHLT_Pt_2 = -1;
+
   if (verbose) cout<<"triggersFoundToApply.size()"<<triggersFoundToApply.size()<<endl;
   for(unsigned int iTrig=0;iTrig<triggersFoundToApply.size();++iTrig){
     lastTriggerModule = -1;
@@ -2634,7 +2695,7 @@ void MuMuGammaRootupler::analyze(const edm::Event & iEvent, const edm::EventSetu
 	nGoodUpsilonCand = 0;
         nTriggeredUpsilonCand = 0;
         nTriggeredFourMuonCand = 0;
-        bool dimuon_trigger_matched=false;
+
 	float bestYMass = 1000;
 	pat::CompositeCandidate DimuonCand_bestYMass;
         if (verbose) cout<<"dimuonCand size: "<<dimuons->size()<<endl;
@@ -2683,12 +2744,15 @@ void MuMuGammaRootupler::analyze(const edm::Event & iEvent, const edm::EventSetu
                         mumu_vFit_noMC = mumuVertexFitTree->currentParticle();
                         mumu_vFit_vertex_noMC = mumuVertexFitTree->currentDecayVertex(); 
                         pat::CompositeCandidate thisDimuonCand = *dimuonCand;
+                        //Jinfeng 12.14 (comment these lines out)
+                        /*
                         if (isTriggerMatch_)
                         {
 	                dimuon_trigger_matched = TriggerMatch(thisDimuonCand);
                         if (verbose)cout<<"Trigger matching results:"<< dimuon_trigger_matched<<endl;
 	                if (!dimuon_trigger_matched) continue;
                          }
+                         */
 	                ++nTriggeredUpsilonCand;
                         if (verbose) cout<<"Dimuon candidate has passed the Trigger matching with dimuon mass:"<<mumu_vFit_noMC->currentState().mass()<<endl; 
                         float thisdimuon_vtxprob = ChiSquaredProbability((double)(mumu_vFit_vertex_noMC->chiSquared()),(double)(mumu_vFit_vertex_noMC->degreesOfFreedom()));    
@@ -3660,7 +3724,21 @@ void MuMuGammaRootupler::YY_fourMuonFit(edm::Handle< edm::View<pat::Muon> > muon
            if (!(fitFourMu->currentState().isValid())) continue;
            if (verbose) cout<<"Double ups vertex probabilty: "<<ChiSquaredProbability((double)(Double_ups_DecayVertex->chiSquared()),(double)(Double_ups_DecayVertex->degreesOfFreedom()))<<endl;
            if (verbose) cout<<"Four muon mass from two jpsi constrainted Fit: "<<fitFourMu->currentState().mass()<<endl;
-           
+
+           //Jinfeng 12.14
+           //Jinfeng 1.16
+           DuplicateHLT_Pt_1 = 0;
+           DuplicateHLT_Pt_2 = 0;
+           Dimuon_trigger_matched_1 = TriggerMatch(mu_i1, mu_i2);
+           Rest_Muon_trigger_Matched_2 = TriggerMatch_restMuons(mu_j1, mu_j2);
+
+           DuplicateHLT_Pt_1 = 0;
+           DuplicateHLT_Pt_2 = 0;
+           Dimuon_trigger_matched_2 = TriggerMatch(mu_j1, mu_j2);
+           Rest_Muon_trigger_Matched_1 = TriggerMatch_restMuons(mu_i1, mu_i2);
+
+           Trigger_Matched = ((Dimuon_trigger_matched_1 && Rest_Muon_trigger_Matched_2) || (Dimuon_trigger_matched_2 && Rest_Muon_trigger_Matched_1));
+
            //Jinfeng_Xdistance (crucial fragment)
            if (!(Double_ups_DecayVertex->vertexIsValid())) continue;
            TLorentzVector LV_P(fitFourMu->currentState().globalMomentum().x(), fitFourMu->currentState().globalMomentum().y(), fitFourMu->currentState().globalMomentum().z(), fitFourMu->currentState().kinematicParameters().energy());
