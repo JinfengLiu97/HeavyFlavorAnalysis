@@ -30,5 +30,12 @@ They and corresponding branches are listed here:
 
 You can also find related variables according to these branches.  
 
+## Update on 2023.01.19
+
+1. The Ntuple Maker gets updated and trigger matching is now available. It is forced to open and there is no need to turn it on in the configuration file.
+2. A branch "Trigger_Matched" is added to the Ntuple, value of which represents the trigger matching result: 1 for pass and 0 for not pass.
+3. The duplicate between two HLT candidate contents ("allUpsilonMuHLTTriggerVectors", "allMuHLTTriggerVectors") is now elminated.
+4. You may search for "12.14" (trigger matching access) and "1.16" (duplicate elimination) for more information.
+
 ## Wish you a nice journey in data processing!
 
